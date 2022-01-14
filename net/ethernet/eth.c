@@ -165,6 +165,11 @@ unsigned short eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	skb_pull(skb,ETH_HLEN);
 	eth= skb->mac.ethernet;
 	
+	/*
+		设置封包类型
+		广播，组播，或者是其他HOST
+		如果帧的接收者就是收到skb的设备
+	*/
 	if(*eth->h_dest&1)
 	{
 		if(memcmp(eth->h_dest,dev->broadcast, ETH_ALEN)==0)

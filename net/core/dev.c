@@ -1543,6 +1543,11 @@ static inline int __handle_bridge(struct sk_buff *skb,
 			struct packet_type **pt_prev, int *ret)
 {
 #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+	/*
+		如果被桥接了，
+		走桥接处理流程
+		通过br_port来判断
+	*/
 	if (skb->dev->br_port) {
 		*ret = handle_bridge(skb, *pt_prev);
 		if (br_handle_frame_hook(skb) == 0)
@@ -1578,7 +1583,14 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	pt_prev = NULL;
 	rcu_read_lock();
+	/*
+	 *	1. ETH_P_ALL上的所有注册回调函数
+	 */
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
+		/*
+		 *	dev为空，为所有协议都开启
+		 *	否则，只为特定设备开启
+		 */
 		if (!ptype->dev || ptype->dev == skb->dev) {
 			if (pt_prev) 
 				ret = deliver_skb(skb, pt_prev, 0);
@@ -1588,9 +1600,12 @@ int netif_receive_skb(struct sk_buff *skb)
 
 	handle_diverter(skb);
 
+	/*处理桥接*/
 	if (__handle_bridge(skb, &pt_prev, &ret))
 		goto out;
-
+	/*
+		1. 遍历ptype_base上的所有协议
+	*/
 	list_for_each_entry_rcu(ptype, &ptype_base[ntohs(type)&15], list) {
 		if (ptype->type == type &&
 		    (!ptype->dev || ptype->dev == skb->dev)) {
@@ -1599,7 +1614,13 @@ int netif_receive_skb(struct sk_buff *skb)
 			pt_prev = ptype;
 		}
 	}
-
+	
+	/*
+		1. 前面的devliver_skb，其实就是递交到相应的协议进行处理
+		2. 会将最后一个协议，放到最后单独处理，这样做的主要原因
+		是，为了判断该数据包是否能被相应的协议进行处理，如果没有
+		相应的协议进行处理，该skb会被丢弃 
+	*/
 	if (pt_prev) {
 		ret = pt_prev->func(skb, skb->dev, pt_prev);
 	} else {

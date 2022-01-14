@@ -454,7 +454,8 @@ struct net_device
 	int			(*accept_fastpath)(struct net_device *, struct dst_entry*);
 
 	/* bridge stuff */
-	struct net_bridge_port	*br_port;
+	/*桥接的端口*/
+	struct net_bridge_port	*br_port;	
 
 #ifdef CONFIG_NET_FASTROUTE
 #define NETDEV_FASTROUTE_HMASK 0xF
