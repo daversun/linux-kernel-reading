@@ -1075,6 +1075,9 @@ static int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 	}
 
+	/*
+		将skb放到接收队列
+	*/
 	if (sock_queue_rcv_skb(sk,skb)<0) {
 		UDP_INC_STATS_BH(UdpInErrors);
 		kfree_skb(skb);
@@ -1187,9 +1190,15 @@ int udp_rcv(struct sk_buff *skb)
 	if(rt->rt_flags & (RTCF_BROADCAST|RTCF_MULTICAST))
 		return udp_v4_mcast_deliver(skb, uh, saddr, daddr);
 
+	/*
+		根据四元组查找对应的sock
+	*/
 	sk = udp_v4_lookup(saddr, uh->source, daddr, uh->dest, skb->dev->ifindex);
 
 	if (sk != NULL) {
+		/*
+			将对应的skb放置到sock对应的接收队列
+		*/
 		int ret = udp_queue_rcv_skb(sk, skb);
 		sock_put(sk);
 
@@ -1209,6 +1218,9 @@ int udp_rcv(struct sk_buff *skb)
 		goto csum_error;
 
 	UDP_INC_STATS_BH(UdpNoPorts);
+	/*
+		发送端口不可达数据包
+	*/
 	icmp_send(skb, ICMP_DEST_UNREACH, ICMP_PORT_UNREACH, 0);
 
 	/*

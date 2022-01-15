@@ -98,8 +98,14 @@ static int wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 		goto interrupted;
 
 	error = 0;
+	/*
+		重新调度，在这里会等待数据包的到来
+	*/
 	*timeo_p = schedule_timeout(*timeo_p);
 out:
+	/*
+		从等待队列中删除该进程
+	*/
 	finish_wait(sk->sk_sleep, &wait);
 	return error;
 interrupted:

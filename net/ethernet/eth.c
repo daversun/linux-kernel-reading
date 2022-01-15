@@ -161,6 +161,10 @@ unsigned short eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *eth;
 	unsigned char *rawp;
 	
+	/*
+		1. 设置二层信息
+		2. 将data指针偏移ETH_HLEN长度
+	*/
 	skb->mac.raw=skb->data;
 	skb_pull(skb,ETH_HLEN);
 	eth= skb->mac.ethernet;

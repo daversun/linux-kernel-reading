@@ -494,7 +494,12 @@ static int nf_queue(struct sk_buff *skb,
 	}
 	return 1;
 }
-
+/*
+	NF_HOOK 宏会调用nf_hook_slow
+	nf_hook_slow会调用相关注册在iptables上的回调函数
+	当注册的回调函数其都被通过时，会调用传入的okfn
+	回调函数
+*/
 int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
 		 struct net_device *indev,
 		 struct net_device *outdev,
@@ -523,7 +528,10 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
 	}
 	skb->nf_debug |= (1 << hook);
 #endif
-
+	/*
+		获取相应的hook函数链
+		该链由协议族，以及hook点共同确定
+	*/
 	elem = &nf_hooks[pf][hook];
  next_hook:
 	verdict = nf_iterate(&nf_hooks[pf][hook], &skb, hook, indev,
@@ -533,7 +541,9 @@ int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
 		if (!nf_queue(skb, elem, pf, hook, indev, outdev, okfn))
 			goto next_hook;
 	}
-
+	/*
+		通过裁决，执行okfn
+	*/
 	switch (verdict) {
 	case NF_ACCEPT:
 		ret = okfn(skb);

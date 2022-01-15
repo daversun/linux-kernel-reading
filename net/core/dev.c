@@ -1578,13 +1578,17 @@ int netif_receive_skb(struct sk_buff *skb)
 		return dev_queue_xmit(skb);
 	}
 #endif
-
+	/*
+		1. 数据链路层头部在此之前已经拨除
+		2. 这里会初始化三层协议的起始位置
+	*/
 	skb->h.raw = skb->nh.raw = skb->data;
 
 	pt_prev = NULL;
 	rcu_read_lock();
 	/*
 	 *	1. ETH_P_ALL上的所有注册回调函数
+	 *  2. 数据包嗅探往往是注册在这里，例如tcpdump
 	 */
 	list_for_each_entry_rcu(ptype, &ptype_all, list) {
 		/*

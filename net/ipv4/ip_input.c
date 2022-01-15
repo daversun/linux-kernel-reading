@@ -204,7 +204,9 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 	nf_debug_ip_local_deliver(skb);
 	skb->nf_debug = 0;
 #endif /*CONFIG_NETFILTER_DEBUG*/
-
+	/*
+		移除相应的三层头部信息
+	*/
 	__skb_pull(skb, ihl);
 
 #ifdef CONFIG_NETFILTER
@@ -215,6 +217,9 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 #endif /*CONFIG_NETFILTER*/
 
         /* Point into the IP datagram, just past the header. */
+		/*
+			设置四层信息头部
+		*/
         skb->h.raw = skb->data;
 
 	rcu_read_lock();
@@ -232,9 +237,19 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 		/* If there maybe a raw socket we must check - if not we
 		 * don't care less
 		 */
+		/*
+			处理4层的raw socket
+		*/
 		if (raw_sk)
 			raw_v4_input(skb, skb->nh.iph, hash);
 
+		/*
+			协议注册：
+			./net/ipv4/af_inet.c:1128:      if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
+			./net/ipv4/af_inet.c:1130:      if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
+			./net/ipv4/af_inet.c:1132:      if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
+			./net/ipv4/af_inet.c:1135:      if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)
+		*/
 		if ((ipprot = inet_protos[hash]) != NULL) {
 			int ret;
 
@@ -244,6 +259,9 @@ static inline int ip_local_deliver_finish(struct sk_buff *skb)
 				kfree_skb(skb);
 				goto out;
 			}
+			/*
+				调用相关的三层协议处理函数
+			*/
 			ret = ipprot->handler(skb);
 			if (ret < 0) {
 				protocol = -ret;
@@ -349,7 +367,14 @@ static inline int ip_rcv_finish(struct sk_buff *skb)
 				goto drop;
 		}
 	}
-
+	/*
+		这里会调用，skb->dst->dst_input
+		对于需要向上传递的数据包，会调用dst_input会被初始化成ip_local_deliver
+		对于需要转发的数据包，dst_input被初始化为：ip_forward，dst_output会被初始化成ip_output
+		1. 对于向上传递的数据包，只会调用dst_input
+		2. 对于转发的数据包，会调用dst_input和dst_output
+		3. 对于只向下传递的数据包，只会调用dst_output
+	*/
 	return dst_input(skb);
 
 inhdr_error:
@@ -361,6 +386,7 @@ drop:
 
 /*
  * 	Main IP Receive routine.
+ *  IP协议处理
  */ 
 int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 {
@@ -379,6 +405,9 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 		goto out;
 	}
 
+	/*
+		判断该数据包的长度是否至少包含IP头部长度
+	*/
 	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
 		goto inhdr_error;
 
@@ -421,7 +450,10 @@ int ip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
 				skb->ip_summed = CHECKSUM_NONE;
 		}
 	}
-
+	/*
+		在进入路由之前进行裁决
+		如果通过，则执行ip_rcv_finish函数
+	*/
 	return NF_HOOK(PF_INET, NF_IP_PRE_ROUTING, skb, dev, NULL,
 		       ip_rcv_finish);
 

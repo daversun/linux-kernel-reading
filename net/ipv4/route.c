@@ -1698,6 +1698,9 @@ int ip_route_input_slow(struct sk_buff *skb, u32 daddr, u32 saddr,
 	rth->fl.oif 	= 0;
 	rth->rt_spec_dst= spec_dst;
 
+	/*
+		转发的input与output的初始化
+	*/
 	rth->u.dst.input = ip_forward;
 	rth->u.dst.output = ip_output;
 
@@ -1776,6 +1779,9 @@ local_input:
 	dev_hold(rth->u.dst.dev);
 	rth->rt_gateway	= daddr;
 	rth->rt_spec_dst= spec_dst;
+	/*
+		目的地址就是本地的话，就在这里
+	*/
 	rth->u.dst.input= ip_local_deliver;
 	rth->rt_flags 	= flags|RTCF_LOCAL;
 	if (res.type == RTN_UNREACHABLE) {
