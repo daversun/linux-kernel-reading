@@ -3355,7 +3355,7 @@ tcp_checksum_complete_user(struct sock *sk, struct sk_buff *skb)
  *	receive procedure patterned after RFC793 to handle all cases.
  *	The first three cases are guaranteed by proper pred_flags setting,
  *	the rest is checked inline. Fast processing is turned on in 
- *	tcp_data_queue when everything is OK.
+ *	tcp_data_queue when  is OK.
  */
 int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			struct tcphdr *th, unsigned len)
@@ -3861,8 +3861,21 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 		if(th->rst)
 			goto discard;
-
+		/*
+			新的连接过来的时候
+			发送syn+ack, 然后将其syn包drop掉，不再往上传递
+		*/
 		if(th->syn) {
+			/*
+				这里conn_request被初始化为
+				tcp_v4_conn_request，
+				这个函数的主要工作包括：
+				1. 分配open_request结构体
+				2. 初始化序列号
+				3. 回送syn+ack
+				回送完之后，是否缓冲open_request结构体，取决于
+				是否采用syn-cooking技术
+			*/
 			if(tp->af_specific->conn_request(sk, skb) < 0)
 				return 1;
 

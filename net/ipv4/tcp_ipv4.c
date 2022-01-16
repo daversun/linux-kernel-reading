@@ -1684,18 +1684,31 @@ static int tcp_v4_checksum_init(struct sk_buff *skb)
  */
 int tcp_v4_do_rcv(struct sock *sk, struct sk_buff *skb)
 {
+	/*
+		检查tcp连接建立的情况
+	*/
 	if (sk->sk_state == TCP_ESTABLISHED) { /* Fast path */
 		TCP_CHECK_TIMER(sk);
+		/*
+			连接建立，进入tcp_rcv_establish函数
+		*/
 		if (tcp_rcv_established(sk, skb, skb->h.th, skb->len))
 			goto reset;
 		TCP_CHECK_TIMER(sk);
 		return 0;
 	}
 
+	/*
+		检查校验和
+	*/
 	if (skb->len < (skb->h.th->doff << 2) || tcp_checksum_complete(skb))
 		goto csum_err;
 
 	if (sk->sk_state == TCP_LISTEN) {
+		/*
+			当客户端第一个SYN过来的时候，nsk是为空的
+			会进入tcp_rcv_state_process的处理
+		*/
 		struct sock *nsk = tcp_v4_hnd_req(sk, skb);
 		if (!nsk)
 			goto discard;
@@ -1764,9 +1777,18 @@ int tcp_v4_rcv(struct sk_buff *skb)
 		goto bad_packet;
 
 	th = skb->h.th;
+	/*
+		设置序列号
+	*/
 	TCP_SKB_CB(skb)->seq = ntohl(th->seq);
+	/*
+		设置结束序列号
+	*/
 	TCP_SKB_CB(skb)->end_seq = (TCP_SKB_CB(skb)->seq + th->syn + th->fin +
 				    skb->len - th->doff * 4);
+	/*
+		设置ack序列号
+	*/
 	TCP_SKB_CB(skb)->ack_seq = ntohl(th->ack_seq);
 	TCP_SKB_CB(skb)->when	 = 0;
 	TCP_SKB_CB(skb)->flags	 = skb->nh.iph->tos;
